@@ -15,6 +15,7 @@ class FakeSerial:
         return b""
 
 
+@pytest.mark.unit
 def test_serial_device_raises_timeout_when_dut_does_not_respond():
     device = SerialDevice(port="FAKE")
     device._serial = FakeSerial()
@@ -38,6 +39,7 @@ class MalformedResponseSerial:
         return b"TEMP=abc\n"
 
 
+@pytest.mark.unit
 def test_serial_device_rejects_malformed_temperature_response():
     device = SerialDevice(port="FAKE")
     device._serial = MalformedResponseSerial()

@@ -1,3 +1,7 @@
+import pytest
+
+
+@pytest.mark.hil
 def test_device_reports_identification(device):
     info = device.get_info()
 

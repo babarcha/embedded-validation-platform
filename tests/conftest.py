@@ -23,6 +23,20 @@ def pytest_addoption(parser):
     )
 
 
+def pytest_configure(config):
+    """Register custom pytest markers."""
+
+    config.addinivalue_line(
+        "markers",
+        "hil: functional validation tests that can run against a physical DUT",
+    )
+
+    config.addinivalue_line(
+        "markers",
+        "unit: software-only tests of the validation framework",
+    )
+
+
 @pytest.fixture
 def device(request):
     device_type = request.config.getoption("--device")
