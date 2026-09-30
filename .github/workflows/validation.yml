@@ -1,0 +1,29 @@
+name: Validation
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  software-validation:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r requirements.txt
+
+      - name: Run unit tests
+        run: python -m pytest -m unit -v
+
+      - name: Run DUT validation with simulator
+        run: python -m pytest -m hil --device simulator -v
