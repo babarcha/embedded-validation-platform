@@ -1,5 +1,4 @@
 import time
-
 import serial
 
 from validation.device.base import Device
@@ -14,27 +13,47 @@ class SerialDevice(Device):
         port: str,
         baudrate: int = 115200,
         timeout: float = 2.0,
+        ready_attempts: int = 5,
+        retry_delay: float = 0.2,
     ):
         self._port = port
         self._baudrate = baudrate
         self._timeout = timeout
+        self._ready_attempts = ready_attempts
+        self._retry_delay = retry_delay
         self._serial = None
 
-    def connect(self) -> None:
-        if self._serial is not None and self._serial.is_open:
-            return
-
-        self._serial = serial.Serial(
+    def _open_serial(self):
+        """Create and return the serial connection."""
+        return serial.Serial(
             port=self._port,
             baudrate=self._baudrate,
             timeout=self._timeout,
         )
 
-        # Opening the serial port may reset the ESP32.
-        time.sleep(2)
+    def connect(self) -> None:
+        if self._serial is not None and self._serial.is_open:
+            return
 
-        # Remove ESP-IDF boot messages from the receive buffer.
+        self._serial = self._open_serial()
+
+        # Discard ESP-IDF boot messages that may already be available.
         self._serial.reset_input_buffer()
+
+        for _ in range(self._ready_attempts):
+            try:
+                if self.ping():
+                    return
+            except TimeoutError:
+                pass
+
+            time.sleep(self._retry_delay)
+
+        self.disconnect()
+        raise TimeoutError(
+            f"DUT on {self._port} did not become ready "
+            f"after {self._ready_attempts} attempts"
+        )
 
     def disconnect(self) -> None:
         if self._serial is not None and self._serial.is_open:
@@ -93,7 +112,6 @@ class SerialDevice(Device):
             )
 
         centidegrees = int(response.split("=", 1)[1])
-
         return centidegrees / 100.0
 
     def send_raw_command(self, command: str) -> str:
