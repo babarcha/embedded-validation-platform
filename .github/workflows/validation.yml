@@ -23,7 +23,20 @@ jobs:
           python -m pip install -r requirements.txt
 
       - name: Run unit tests
-        run: python -m pytest -m unit -v
+        run: |
+          mkdir -p reports
+          python -m pytest -m unit -v \
+            --junitxml=reports/unit.xml
 
       - name: Run DUT validation with simulator
-        run: python -m pytest -m hil --device simulator -v
+        run: |
+          python -m pytest -m hil --device simulator -v \
+            --junitxml=reports/hil-simulator.xml
+
+      - name: Upload validation reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: validation-reports
+          path: reports/
+          
