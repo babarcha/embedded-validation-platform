@@ -37,7 +37,7 @@ def pytest_configure(config):
     )
 
 
-@pytest.fixture
+@pytest.fixture(scope="session")
 def device(request):
     device_type = request.config.getoption("--device")
     port = request.config.getoption("--port")
