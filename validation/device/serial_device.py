@@ -3,6 +3,11 @@ import serial
 
 from validation.device.base import Device
 from validation.device.models import DeviceInfo
+from validation.device.exceptions import (
+    DeviceConnectionError,
+    DeviceTimeoutError,
+    ProtocolError,
+)
 
 
 class SerialDevice(Device):
@@ -51,7 +56,7 @@ class SerialDevice(Device):
 
         self.disconnect()
 
-        raise TimeoutError(
+        raise DeviceTimeoutError(
             f"DUT on {self._port} did not become ready "
             f"after {self._ready_attempts} attempts"
         )
@@ -62,12 +67,16 @@ class SerialDevice(Device):
 
     def _require_connection(self) -> None:
         if self._serial is None or not self._serial.is_open:
-            raise RuntimeError("Device is not connected")
+            raise DeviceConnectionError(
+                "Device is not connected"
+            )
 
     def _send_command(self, command: str) -> str:
         self._require_connection()
 
-        self._serial.write(f"{command}\n".encode())
+        self._serial.write(
+            f"{command}\n".encode()
+        )
 
         response = (
             self._serial.readline()
@@ -76,7 +85,7 @@ class SerialDevice(Device):
         )
 
         if not response:
-            raise TimeoutError(
+            raise DeviceTimeoutError(
                 f"No response received for command: {command}"
             )
 
@@ -89,7 +98,7 @@ class SerialDevice(Device):
         response = self._send_command("GET_INFO")
 
         if not response.startswith("MODEL="):
-            raise ValueError(
+            raise ProtocolError(
                 f"Unexpected GET_INFO response: {response}"
             )
 
@@ -104,7 +113,7 @@ class SerialDevice(Device):
             firmware_version = fields["FW"]
 
         except (ValueError, KeyError) as exc:
-            raise ValueError(
+            raise ProtocolError(
                 f"Invalid GET_INFO response: {response}"
             ) from exc
 
@@ -117,7 +126,7 @@ class SerialDevice(Device):
         response = self._send_command("GET_TEMP")
 
         if not response.startswith("TEMP_CDEG="):
-            raise ValueError(
+            raise ProtocolError(
                 f"Unexpected GET_TEMP response: {response}"
             )
 
@@ -126,7 +135,7 @@ class SerialDevice(Device):
         try:
             centidegrees = int(value)
         except ValueError as exc:
-            raise ValueError(
+            raise ProtocolError(
                 f"Invalid temperature value: {value}"
             ) from exc
 
