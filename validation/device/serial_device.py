@@ -50,6 +50,7 @@ class SerialDevice(Device):
             time.sleep(self._retry_delay)
 
         self.disconnect()
+
         raise TimeoutError(
             f"DUT on {self._port} did not become ready "
             f"after {self._ready_attempts} attempts"
@@ -94,13 +95,22 @@ class SerialDevice(Device):
 
         fields = {}
 
-        for item in response.split(";"):
-            key, value = item.split("=", 1)
-            fields[key] = value
+        try:
+            for item in response.split(";"):
+                key, value = item.split("=", 1)
+                fields[key] = value
+
+            model = fields["MODEL"]
+            firmware_version = fields["FW"]
+
+        except (ValueError, KeyError) as exc:
+            raise ValueError(
+                f"Invalid GET_INFO response: {response}"
+            ) from exc
 
         return DeviceInfo(
-            model=fields["MODEL"],
-            firmware_version=fields["FW"],
+            model=model,
+            firmware_version=firmware_version,
         )
 
     def read_temperature(self) -> float:
@@ -111,7 +121,15 @@ class SerialDevice(Device):
                 f"Unexpected GET_TEMP response: {response}"
             )
 
-        centidegrees = int(response.split("=", 1)[1])
+        value = response.split("=", 1)[1]
+
+        try:
+            centidegrees = int(value)
+        except ValueError as exc:
+            raise ValueError(
+                f"Invalid temperature value: {value}"
+            ) from exc
+
         return centidegrees / 100.0
 
     def send_raw_command(self, command: str) -> str:

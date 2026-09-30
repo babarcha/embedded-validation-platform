@@ -121,3 +121,51 @@ def test_connect_times_out_when_dut_never_becomes_ready(monkeypatch):
         device.connect()
 
     assert fake_serial.is_open is False
+
+
+class MissingFirmwareSerial:
+    """Serial fake that omits the firmware field."""
+
+    is_open = True
+
+    def write(self, data: bytes) -> int:
+        return len(data)
+
+    def readline(self) -> bytes:
+        return b"MODEL=ESP32-DUT\n"
+
+
+@pytest.mark.unit
+def test_get_info_rejects_missing_firmware_field():
+    device = SerialDevice(port="FAKE")
+    device._serial = MissingFirmwareSerial()
+
+    with pytest.raises(
+        ValueError,
+        match="Invalid GET_INFO response",
+    ):
+        device.get_info()
+
+
+class InvalidTemperatureSerial:
+    """Serial fake that returns non-numeric temperature data."""
+
+    is_open = True
+
+    def write(self, data: bytes) -> int:
+        return len(data)
+
+    def readline(self) -> bytes:
+        return b"TEMP_CDEG=abc\n"
+
+
+@pytest.mark.unit
+def test_read_temperature_rejects_non_numeric_value():
+    device = SerialDevice(port="FAKE")
+    device._serial = InvalidTemperatureSerial()
+
+    with pytest.raises(
+        ValueError,
+        match="Invalid temperature value",
+    ):
+        device.read_temperature()
