@@ -1,5 +1,10 @@
 import pytest
 
+from validation.device.exceptions import (
+    DeviceConnectionError,
+    DeviceTimeoutError,
+    ProtocolError,
+)
 from validation.device.serial_device import SerialDevice
 
 
@@ -18,6 +23,7 @@ class DelayedReadySerial:
     def readline(self) -> bytes:
         if self.attempt < 2:
             return b""
+
         return b"OK\n"
 
     def reset_input_buffer(self) -> None:
@@ -28,7 +34,7 @@ class DelayedReadySerial:
 
 
 class FakeSerial:
-    """Minimal serial-port fake that simulates a non-responsive DUT."""
+    """Serial fake that simulates a non-responsive DUT."""
 
     is_open = True
 
@@ -45,18 +51,6 @@ class FakeSerial:
         self.is_open = False
 
 
-@pytest.mark.unit
-def test_serial_device_raises_timeout_when_dut_does_not_respond():
-    device = SerialDevice(port="FAKE")
-    device._serial = FakeSerial()
-
-    with pytest.raises(
-        TimeoutError,
-        match="No response received for command: PING",
-    ):
-        device.ping()
-
-
 class MalformedResponseSerial:
     """Serial fake that returns an invalid temperature response."""
 
@@ -69,13 +63,49 @@ class MalformedResponseSerial:
         return b"TEMP=abc\n"
 
 
+class MissingFirmwareSerial:
+    """Serial fake that omits the firmware field."""
+
+    is_open = True
+
+    def write(self, data: bytes) -> int:
+        return len(data)
+
+    def readline(self) -> bytes:
+        return b"MODEL=ESP32-DUT\n"
+
+
+class InvalidTemperatureSerial:
+    """Serial fake that returns non-numeric temperature data."""
+
+    is_open = True
+
+    def write(self, data: bytes) -> int:
+        return len(data)
+
+    def readline(self) -> bytes:
+        return b"TEMP_CDEG=abc\n"
+
+
+@pytest.mark.unit
+def test_serial_device_raises_timeout_when_dut_does_not_respond():
+    device = SerialDevice(port="FAKE")
+    device._serial = FakeSerial()
+
+    with pytest.raises(
+        DeviceTimeoutError,
+        match="No response received for command: PING",
+    ):
+        device.ping()
+
+
 @pytest.mark.unit
 def test_serial_device_rejects_malformed_temperature_response():
     device = SerialDevice(port="FAKE")
     device._serial = MalformedResponseSerial()
 
     with pytest.raises(
-        ValueError,
+        ProtocolError,
         match="Unexpected GET_TEMP response",
     ):
         device.read_temperature()
@@ -84,6 +114,7 @@ def test_serial_device_rejects_malformed_temperature_response():
 @pytest.mark.unit
 def test_connect_retries_until_dut_is_ready(monkeypatch):
     fake_serial = DelayedReadySerial()
+
     device = SerialDevice(port="FAKE")
 
     monkeypatch.setattr(
@@ -115,24 +146,12 @@ def test_connect_times_out_when_dut_never_becomes_ready(monkeypatch):
     )
 
     with pytest.raises(
-        TimeoutError,
+        DeviceTimeoutError,
         match="DUT on FAKE did not become ready after 3 attempts",
     ):
         device.connect()
 
     assert fake_serial.is_open is False
-
-
-class MissingFirmwareSerial:
-    """Serial fake that omits the firmware field."""
-
-    is_open = True
-
-    def write(self, data: bytes) -> int:
-        return len(data)
-
-    def readline(self) -> bytes:
-        return b"MODEL=ESP32-DUT\n"
 
 
 @pytest.mark.unit
@@ -141,22 +160,10 @@ def test_get_info_rejects_missing_firmware_field():
     device._serial = MissingFirmwareSerial()
 
     with pytest.raises(
-        ValueError,
+        ProtocolError,
         match="Invalid GET_INFO response",
     ):
         device.get_info()
-
-
-class InvalidTemperatureSerial:
-    """Serial fake that returns non-numeric temperature data."""
-
-    is_open = True
-
-    def write(self, data: bytes) -> int:
-        return len(data)
-
-    def readline(self) -> bytes:
-        return b"TEMP_CDEG=abc\n"
 
 
 @pytest.mark.unit
@@ -165,7 +172,18 @@ def test_read_temperature_rejects_non_numeric_value():
     device._serial = InvalidTemperatureSerial()
 
     with pytest.raises(
-        ValueError,
+        ProtocolError,
         match="Invalid temperature value",
     ):
         device.read_temperature()
+
+
+@pytest.mark.unit
+def test_command_rejected_when_device_is_not_connected():
+    device = SerialDevice(port="FAKE")
+
+    with pytest.raises(
+        DeviceConnectionError,
+        match="Device is not connected",
+    ):
+        device.ping()
