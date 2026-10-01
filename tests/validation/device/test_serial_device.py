@@ -8,12 +8,30 @@ from validation.device.exceptions import (
 from validation.device.serial_device import SerialDevice
 
 
-class DelayedReadySerial:
-    """Serial fake that becomes responsive after initial startup noise."""
-
-    is_open = True
+class BaseFakeSerial:
+    """Minimal pyserial-compatible test double."""
 
     def __init__(self):
+        self.is_open = True
+
+    def write(self, data: bytes) -> int:
+        return len(data)
+
+    def reset_input_buffer(self) -> None:
+        pass
+
+    def flush(self) -> None:
+        pass
+
+    def close(self) -> None:
+        self.is_open = False
+
+
+class DelayedReadySerial(BaseFakeSerial):
+    """Serial fake that becomes responsive after initial startup noise."""
+
+    def __init__(self):
+        super().__init__()
         self.attempt = 0
 
     def write(self, data: bytes) -> int:
@@ -26,62 +44,30 @@ class DelayedReadySerial:
 
         return b"OK\n"
 
-    def reset_input_buffer(self) -> None:
-        pass
 
-    def close(self) -> None:
-        self.is_open = False
-
-
-class FakeSerial:
+class FakeSerial(BaseFakeSerial):
     """Serial fake that simulates a non-responsive DUT."""
-
-    is_open = True
-
-    def write(self, data: bytes) -> int:
-        return len(data)
 
     def readline(self) -> bytes:
         return b""
 
-    def reset_input_buffer(self) -> None:
-        pass
 
-    def close(self) -> None:
-        self.is_open = False
-
-
-class MalformedResponseSerial:
+class MalformedResponseSerial(BaseFakeSerial):
     """Serial fake that returns an invalid temperature response."""
-
-    is_open = True
-
-    def write(self, data: bytes) -> int:
-        return len(data)
 
     def readline(self) -> bytes:
         return b"TEMP=abc\n"
 
 
-class MissingFirmwareSerial:
+class MissingFirmwareSerial(BaseFakeSerial):
     """Serial fake that omits the firmware field."""
-
-    is_open = True
-
-    def write(self, data: bytes) -> int:
-        return len(data)
 
     def readline(self) -> bytes:
         return b"MODEL=ESP32-DUT\n"
 
 
-class InvalidTemperatureSerial:
+class InvalidTemperatureSerial(BaseFakeSerial):
     """Serial fake that returns non-numeric temperature data."""
-
-    is_open = True
-
-    def write(self, data: bytes) -> int:
-        return len(data)
 
     def readline(self) -> bytes:
         return b"TEMP_CDEG=abc\n"
@@ -89,7 +75,10 @@ class InvalidTemperatureSerial:
 
 @pytest.mark.unit
 def test_serial_device_raises_timeout_when_dut_does_not_respond():
-    device = SerialDevice(port="FAKE")
+    device = SerialDevice(
+        port="FAKE",
+        timeout=0.01,
+    )
     device._serial = FakeSerial()
 
     with pytest.raises(
@@ -115,7 +104,11 @@ def test_serial_device_rejects_malformed_temperature_response():
 def test_connect_retries_until_dut_is_ready(monkeypatch):
     fake_serial = DelayedReadySerial()
 
-    device = SerialDevice(port="FAKE")
+    device = SerialDevice(
+        port="FAKE",
+        timeout=0.01,
+        retry_delay=0,
+    )
 
     monkeypatch.setattr(
         device,
@@ -135,6 +128,7 @@ def test_connect_times_out_when_dut_never_becomes_ready(monkeypatch):
 
     device = SerialDevice(
         port="FAKE",
+        timeout=0.01,
         ready_attempts=3,
         retry_delay=0,
     )

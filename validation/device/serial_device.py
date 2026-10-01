@@ -1,4 +1,5 @@
 import time
+
 import serial
 
 from validation.device.base import Device
@@ -37,19 +38,24 @@ class SerialDevice(Device):
         )
 
     def connect(self) -> None:
+        """Open the serial connection and verify that the DUT is responsive."""
+
         if self._serial is not None and self._serial.is_open:
             return
 
         self._serial = self._open_serial()
 
-        # Discard ESP-IDF boot messages that may already be available.
+        # ESP32 may have produced boot messages before the connection
+        # was established. Discard those messages before beginning the
+        # DUT command protocol.
         self._serial.reset_input_buffer()
 
         for _ in range(self._ready_attempts):
             try:
                 if self.ping():
                     return
-            except TimeoutError:
+
+            except DeviceTimeoutError:
                 pass
 
             time.sleep(self._retry_delay)
@@ -62,39 +68,70 @@ class SerialDevice(Device):
         )
 
     def disconnect(self) -> None:
+        """Close the serial connection."""
+
         if self._serial is not None and self._serial.is_open:
             self._serial.close()
 
     def _require_connection(self) -> None:
+        """Ensure that a serial connection is currently available."""
+
         if self._serial is None or not self._serial.is_open:
             raise DeviceConnectionError(
                 "Device is not connected"
             )
 
     def _send_command(self, command: str) -> str:
+        """
+        Send one DUT command and return one protocol response.
+
+        Diagnostic messages are ignored so that the validation layer
+        receives only DUT protocol responses.
+        """
+
         self._require_connection()
 
-        self._serial.write(
-            f"{command}\n".encode()
-        )
+        # Remove stale data left from boot output or an earlier
+        # transaction.
+        self._serial.reset_input_buffer()
 
-        response = (
-            self._serial.readline()
-            .decode(errors="replace")
-            .strip()
-        )
+        request = f"{command}\n".encode("utf-8")
 
-        if not response:
-            raise DeviceTimeoutError(
-                f"No response received for command: {command}"
+        self._serial.write(request)
+        self._serial.flush()
+
+        deadline = time.monotonic() + self._timeout
+
+        while time.monotonic() < deadline:
+            response = (
+                self._serial.readline()
+                .decode("utf-8", errors="replace")
+                .strip()
             )
 
-        return response
+            # No complete line received yet.
+            if not response:
+                continue
+
+            # Firmware diagnostic output is not part of the DUT
+            # command protocol.
+            if response.startswith("DEBUG"):
+                continue
+
+            return response
+
+        raise DeviceTimeoutError(
+            f"No response received for command: {command}"
+        )
 
     def ping(self) -> bool:
+        """Check whether the DUT responds to the PING command."""
+
         return self._send_command("PING") == "OK"
 
     def get_info(self) -> DeviceInfo:
+        """Read DUT model and firmware identification."""
+
         response = self._send_command("GET_INFO")
 
         if not response.startswith("MODEL="):
@@ -123,6 +160,8 @@ class SerialDevice(Device):
         )
 
     def read_temperature(self) -> float:
+        """Read the DUT temperature and return degrees Celsius."""
+
         response = self._send_command("GET_TEMP")
 
         if not response.startswith("TEMP_CDEG="):
@@ -134,6 +173,7 @@ class SerialDevice(Device):
 
         try:
             centidegrees = int(value)
+
         except ValueError as exc:
             raise ProtocolError(
                 f"Invalid temperature value: {value}"
@@ -142,4 +182,6 @@ class SerialDevice(Device):
         return centidegrees / 100.0
 
     def send_raw_command(self, command: str) -> str:
+        """Send a raw DUT protocol command."""
+
         return self._send_command(command)
