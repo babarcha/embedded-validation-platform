@@ -5,3 +5,4 @@ __pycache__/
 firmware/esp32_validation_dut/build/
 firmware/esp32_validation_dut/sdkconfig.old
 firmware/esp32_validation_dut/sdkconfig.old
+reports/
