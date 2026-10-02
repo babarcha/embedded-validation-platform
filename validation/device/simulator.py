@@ -44,6 +44,14 @@ class SimulatedDevice(Device):
 
         return 0
 
+    def spi_loopback(self) -> bool:
+        """
+        Simulate a successful SPI loopback test.
+        """
+        self._require_connection()
+
+        return True
+
     def send_raw_command(self, command: str) -> str:
         self._require_connection()
 
@@ -52,5 +60,8 @@ class SimulatedDevice(Device):
 
         if command == "I2C_SCAN":
             return "I2C_DEVICES=0"
+
+        if command == "SPI_LOOPBACK":
+            return "SPI_LOOPBACK=PASS"
 
         return "ERROR=UNKNOWN_COMMAND"

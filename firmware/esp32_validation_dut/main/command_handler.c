@@ -3,6 +3,7 @@
 
 #include "command_handler.h"
 #include "i2c_test.h"
+#include "spi_test.h"
 
 #define DUT_MODEL "ESP32-DUT"
 #define FW_VERSION "1.0.0"
@@ -25,19 +26,33 @@ void process_command(const char *command)
     else if (strcmp(command, "I2C_SCAN") == 0)
     {
         int device_count = i2c_test_scan();
-    if (device_count < 0)
+
+        if (device_count < 0)
+        {
+            printf("ERROR=I2C_NOT_INITIALIZED\n");
+        }
+        else
+        {
+            printf("I2C_DEVICES=%d\n", device_count);
+        }
+    }
+    else if (strcmp(command, "SPI_LOOPBACK") == 0)
     {
-        printf("ERROR=I2C_NOT_INITIALIZED\n");
+        esp_err_t result = spi_test_loopback();
+
+        if (result == ESP_OK)
+        {
+            printf("SPI_LOOPBACK=PASS\n");
+        }
+        else
+        {
+            printf("SPI_LOOPBACK=FAIL\n");
+        }
     }
     else
     {
-        printf("I2C_DEVICES=%d\n", device_count);
+        printf("ERROR=UNKNOWN_COMMAND\n");
     }
-}
-else
-{
-    printf("ERROR=UNKNOWN_COMMAND\n");
-}
 
     fflush(stdout);
 }

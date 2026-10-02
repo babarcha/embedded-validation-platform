@@ -31,6 +31,7 @@ class SerialDevice(Device):
 
     def _open_serial(self):
         """Create and return the serial connection."""
+
         return serial.Serial(
             port=self._port,
             baudrate=self._baudrate,
@@ -45,16 +46,12 @@ class SerialDevice(Device):
 
         self._serial = self._open_serial()
 
-        # ESP32 may have produced boot messages before the connection
-        # was established. Discard those messages before beginning the
-        # DUT command protocol.
         self._serial.reset_input_buffer()
 
         for _ in range(self._ready_attempts):
             try:
                 if self.ping():
                     return
-
             except DeviceTimeoutError:
                 pass
 
@@ -91,8 +88,6 @@ class SerialDevice(Device):
 
         self._require_connection()
 
-        # Remove stale data left from boot output or an earlier
-        # transaction.
         self._serial.reset_input_buffer()
 
         request = f"{command}\n".encode("utf-8")
@@ -112,7 +107,6 @@ class SerialDevice(Device):
             if not response:
                 continue
 
-            # Ignore diagnostic output from the DUT.
             if response.startswith("DEBUG"):
                 continue
 
@@ -210,6 +204,26 @@ class SerialDevice(Device):
             )
 
         return device_count
+
+    def spi_loopback(self) -> bool:
+        """
+        Run the DUT physical SPI loopback test.
+
+        The firmware transmits a known byte pattern on MOSI and
+        verifies that the same data is received on MISO.
+        """
+
+        response = self._send_command("SPI_LOOPBACK")
+
+        if response == "SPI_LOOPBACK=PASS":
+            return True
+
+        if response == "SPI_LOOPBACK=FAIL":
+            return False
+
+        raise ProtocolError(
+            f"Unexpected SPI_LOOPBACK response: {response}"
+        )
 
     def send_raw_command(self, command: str) -> str:
         """Send a raw DUT protocol command."""

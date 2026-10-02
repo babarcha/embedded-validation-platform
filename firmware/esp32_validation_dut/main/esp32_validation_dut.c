@@ -6,6 +6,8 @@
 #include "i2c_test.h"
 #include "command_handler.h"
 
+#include "spi_test.h"
+
 #include "command_handler.h"
 
 #define DUT_UART UART_NUM_0
@@ -32,10 +34,10 @@ void app_main(void)
             0,
             NULL,
             0));
-
     ESP_ERROR_CHECK(i2c_test_init());
+    ESP_ERROR_CHECK(spi_test_init());
 
-    printf("ESP32 Validation DUT ready\n");
+    printf("ESP32 Validation DUT ready\n");;
     fflush(stdout);
 
     while (1)

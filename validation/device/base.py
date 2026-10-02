@@ -37,6 +37,11 @@ class Device(ABC):
         pass
 
     @abstractmethod
+    def spi_loopback(self) -> bool:
+        """Run the DUT SPI loopback test and return whether it passed."""
+        pass
+
+    @abstractmethod
     def send_raw_command(self, command: str) -> str:
         """Send a raw command and return the DUT response."""
         pass
