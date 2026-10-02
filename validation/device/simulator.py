@@ -34,10 +34,23 @@ class SimulatedDevice(Device):
         self._require_connection()
         return 23.45
 
+    def scan_i2c(self) -> int:
+        """
+        Simulate an I2C bus scan.
+
+        The current simulated DUT models an empty I2C bus.
+        """
+        self._require_connection()
+
+        return 0
+
     def send_raw_command(self, command: str) -> str:
         self._require_connection()
 
         if command == "PING":
             return "OK"
+
+        if command == "I2C_SCAN":
+            return "I2C_DEVICES=0"
 
         return "ERROR=UNKNOWN_COMMAND"

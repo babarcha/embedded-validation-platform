@@ -3,6 +3,8 @@
 #include "driver/uart.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
+#include "i2c_test.h"
+#include "command_handler.h"
 
 #include "command_handler.h"
 
@@ -30,6 +32,8 @@ void app_main(void)
             0,
             NULL,
             0));
+
+    ESP_ERROR_CHECK(i2c_test_init());
 
     printf("ESP32 Validation DUT ready\n");
     fflush(stdout);

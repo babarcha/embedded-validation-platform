@@ -2,6 +2,7 @@
 #include <string.h>
 
 #include "command_handler.h"
+#include "i2c_test.h"
 
 #define DUT_MODEL "ESP32-DUT"
 #define FW_VERSION "1.0.0"
@@ -21,10 +22,22 @@ void process_command(const char *command)
     {
         printf("TEMP_CDEG=%d\n", TEMP_CDEG);
     }
+    else if (strcmp(command, "I2C_SCAN") == 0)
+    {
+        int device_count = i2c_test_scan();
+    if (device_count < 0)
+    {
+        printf("ERROR=I2C_NOT_INITIALIZED\n");
+    }
     else
     {
-        printf("ERROR=UNKNOWN_COMMAND\n");
+        printf("I2C_DEVICES=%d\n", device_count);
     }
+}
+else
+{
+    printf("ERROR=UNKNOWN_COMMAND\n");
+}
 
     fflush(stdout);
 }

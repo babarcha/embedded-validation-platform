@@ -32,6 +32,11 @@ class Device(ABC):
         pass
 
     @abstractmethod
+    def scan_i2c(self) -> int:
+        """Return the number of devices detected on the I2C bus."""
+        pass
+
+    @abstractmethod
     def send_raw_command(self, command: str) -> str:
         """Send a raw command and return the DUT response."""
         pass

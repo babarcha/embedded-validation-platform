@@ -109,12 +109,10 @@ class SerialDevice(Device):
                 .strip()
             )
 
-            # No complete line received yet.
             if not response:
                 continue
 
-            # Firmware diagnostic output is not part of the DUT
-            # command protocol.
+            # Ignore diagnostic output from the DUT.
             if response.startswith("DEBUG"):
                 continue
 
@@ -180,6 +178,38 @@ class SerialDevice(Device):
             ) from exc
 
         return centidegrees / 100.0
+
+    def scan_i2c(self) -> int:
+        """
+        Scan the DUT I2C bus.
+
+        Returns the number of I2C peripherals detected by the
+        ESP32 I2C master.
+        """
+
+        response = self._send_command("I2C_SCAN")
+
+        if not response.startswith("I2C_DEVICES="):
+            raise ProtocolError(
+                f"Unexpected I2C_SCAN response: {response}"
+            )
+
+        value = response.split("=", 1)[1]
+
+        try:
+            device_count = int(value)
+
+        except ValueError as exc:
+            raise ProtocolError(
+                f"Invalid I2C device count: {value}"
+            ) from exc
+
+        if device_count < 0:
+            raise ProtocolError(
+                f"Invalid I2C device count: {device_count}"
+            )
+
+        return device_count
 
     def send_raw_command(self, command: str) -> str:
         """Send a raw DUT protocol command."""
