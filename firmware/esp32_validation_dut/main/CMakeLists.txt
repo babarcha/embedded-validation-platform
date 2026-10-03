@@ -5,6 +5,7 @@ idf_component_register(
         "i2c_test.c"
         "spi_test.c"
         "uart_test.c"
+        "twai_test.c"
     INCLUDE_DIRS "."
     REQUIRES driver
 )

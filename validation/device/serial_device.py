@@ -249,3 +249,23 @@ class SerialDevice(Device):
         raise ProtocolError(
             f"Unexpected UART_LOOPBACK response: {response}"
         )
+
+    def can_self_test(self) -> bool:
+        """
+        Run the DUT TWAI/CAN logic-level self-test.
+
+        The firmware transmits a known CAN frame through the ESP32
+        TWAI controller and verifies the received frame.
+        """
+
+        response = self._send_command("CAN_SELF_TEST")
+
+        if response == "CAN_SELF_TEST=PASS":
+            return True
+
+        if response == "CAN_SELF_TEST=FAIL":
+            return False
+
+        raise ProtocolError(
+            f"Unexpected CAN_SELF_TEST response: {response}"
+        )

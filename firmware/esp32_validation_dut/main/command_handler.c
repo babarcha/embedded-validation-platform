@@ -5,6 +5,7 @@
 #include "i2c_test.h"
 #include "spi_test.h"
 #include "uart_test.h"
+#include "twai_test.h"
 
 #define DUT_MODEL "ESP32-DUT"
 #define FW_VERSION "1.0.0"
@@ -63,6 +64,19 @@ void process_command(const char *command)
             printf("UART_LOOPBACK=FAIL\n");
         }
     }
+    else if (strcmp(command, "CAN_SELF_TEST") == 0)
+    {
+      esp_err_t result = twai_test_self_test();
+
+      if (result == ESP_OK)
+      {
+          printf("CAN_SELF_TEST=PASS\n");
+      }
+    else
+    {
+        printf("CAN_SELF_TEST=FAIL\n");
+    }
+}
     else
     {
         printf("ERROR=UNKNOWN_COMMAND\n");

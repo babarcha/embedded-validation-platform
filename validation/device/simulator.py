@@ -60,6 +60,14 @@ class SimulatedDevice(Device):
 
         return True
 
+    def can_self_test(self) -> bool:
+        """
+        Simulate a successful TWAI/CAN self-test.
+        """
+        self._require_connection()
+
+        return True
+
     def send_raw_command(self, command: str) -> str:
         self._require_connection()
 
@@ -74,5 +82,8 @@ class SimulatedDevice(Device):
 
         if command == "UART_LOOPBACK":
             return "UART_LOOPBACK=PASS"
+
+        if command == "CAN_SELF_TEST":
+            return "CAN_SELF_TEST=PASS"
 
         return "ERROR=UNKNOWN_COMMAND"
