@@ -73,6 +73,23 @@ class InvalidTemperatureSerial(BaseFakeSerial):
         return b"TEMP_CDEG=abc\n"
 
 
+class DiagnosticLogSerial(BaseFakeSerial):
+    """Serial fake that emits an ESP-IDF log before the protocol response."""
+
+    def __init__(self):
+        super().__init__()
+        self.responses = [
+            b"I (9110) spi_test: SPI loopback passed: 8 bytes verified\n",
+            b"SPI_LOOPBACK=PASS\n",
+        ]
+
+    def readline(self) -> bytes:
+        if self.responses:
+            return self.responses.pop(0)
+
+        return b""
+
+
 @pytest.mark.unit
 def test_serial_device_raises_timeout_when_dut_does_not_respond():
     device = SerialDevice(
@@ -181,3 +198,15 @@ def test_command_rejected_when_device_is_not_connected():
         match="Device is not connected",
     ):
         device.ping()
+
+
+@pytest.mark.unit
+def test_serial_device_ignores_esp_idf_log_before_protocol_response():
+    """
+    ESP-IDF diagnostic logs must not be mistaken for DUT protocol responses.
+    """
+
+    device = SerialDevice(port="FAKE")
+    device._serial = DiagnosticLogSerial()
+
+    assert device.spi_loopback() is True

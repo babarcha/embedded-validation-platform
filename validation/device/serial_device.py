@@ -88,6 +88,8 @@ class SerialDevice(Device):
 
         self._require_connection()
 
+        # Discard stale serial data left from boot messages or an earlier
+        # transaction before issuing a new command.
         self._serial.reset_input_buffer()
 
         request = f"{command}\n".encode("utf-8")
@@ -107,7 +109,25 @@ class SerialDevice(Device):
             if not response:
                 continue
 
+            # Firmware command-handler diagnostics are not part of the
+            # machine-readable DUT protocol.
             if response.startswith("DEBUG"):
+                continue
+
+            # ESP-IDF logging may appear between the command request and
+            # the actual DUT protocol response. Ignore these diagnostic
+            # records and continue reading.
+            #
+            # Examples:
+            #   I (8720) twai_test: TWAI self-test passed
+            #   W (1000) component: warning
+            #   E (2000) spi_test: SPI loopback data mismatch
+            #
+            # The authoritative protocol response follows separately,
+            # for example CAN_SELF_TEST=PASS or SPI_LOOPBACK=FAIL.
+            if response.startswith(
+                ("I (", "W (", "E (", "D (", "V (")
+            ):
                 continue
 
             return response
@@ -225,11 +245,6 @@ class SerialDevice(Device):
             f"Unexpected SPI_LOOPBACK response: {response}"
         )
 
-    def send_raw_command(self, command: str) -> str:
-        """Send a raw DUT protocol command."""
-
-        return self._send_command(command)
-
     def uart_loopback(self) -> bool:
         """
         Run the DUT physical UART loopback test.
@@ -269,3 +284,8 @@ class SerialDevice(Device):
         raise ProtocolError(
             f"Unexpected CAN_SELF_TEST response: {response}"
         )
+
+    def send_raw_command(self, command: str) -> str:
+        """Send a raw DUT protocol command."""
+
+        return self._send_command(command)
