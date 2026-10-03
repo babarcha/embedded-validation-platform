@@ -4,6 +4,7 @@
 #include "command_handler.h"
 #include "i2c_test.h"
 #include "spi_test.h"
+#include "uart_test.h"
 
 #define DUT_MODEL "ESP32-DUT"
 #define FW_VERSION "1.0.0"
@@ -47,6 +48,19 @@ void process_command(const char *command)
         else
         {
             printf("SPI_LOOPBACK=FAIL\n");
+        }
+    }
+    else if (strcmp(command, "UART_LOOPBACK") == 0)
+    {
+        esp_err_t result = uart_test_loopback();
+
+        if (result == ESP_OK)
+        {
+            printf("UART_LOOPBACK=PASS\n");
+        }
+        else
+        {
+            printf("UART_LOOPBACK=FAIL\n");
         }
     }
     else

@@ -229,3 +229,23 @@ class SerialDevice(Device):
         """Send a raw DUT protocol command."""
 
         return self._send_command(command)
+
+    def uart_loopback(self) -> bool:
+        """
+        Run the DUT physical UART loopback test.
+
+        The firmware transmits a known byte pattern on UART2 TX
+        and verifies that the same data is received on UART2 RX.
+        """
+
+        response = self._send_command("UART_LOOPBACK")
+
+        if response == "UART_LOOPBACK=PASS":
+            return True
+
+        if response == "UART_LOOPBACK=FAIL":
+            return False
+
+        raise ProtocolError(
+            f"Unexpected UART_LOOPBACK response: {response}"
+        )

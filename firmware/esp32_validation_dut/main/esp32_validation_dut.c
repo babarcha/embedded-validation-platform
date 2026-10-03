@@ -5,6 +5,7 @@
 #include "freertos/task.h"
 #include "i2c_test.h"
 #include "command_handler.h"
+#include "uart_test.h"
 
 #include "spi_test.h"
 
@@ -36,8 +37,9 @@ void app_main(void)
             0));
     ESP_ERROR_CHECK(i2c_test_init());
     ESP_ERROR_CHECK(spi_test_init());
+    ESP_ERROR_CHECK(uart_test_init());
 
-    printf("ESP32 Validation DUT ready\n");;
+    printf("ESP32 Validation DUT ready\n");
     fflush(stdout);
 
     while (1)
