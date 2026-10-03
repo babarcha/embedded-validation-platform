@@ -34,10 +34,56 @@ class SimulatedDevice(Device):
         self._require_connection()
         return 23.45
 
+    def scan_i2c(self) -> int:
+        """
+        Simulate an I2C bus scan.
+
+        The current simulated DUT models an empty I2C bus.
+        """
+        self._require_connection()
+
+        return 0
+
+    def spi_loopback(self) -> bool:
+        """
+        Simulate a successful SPI loopback test.
+        """
+        self._require_connection()
+
+        return True
+
+    def uart_loopback(self) -> bool:
+        """
+        Simulate a successful UART loopback test.
+        """
+        self._require_connection()
+
+        return True
+
+    def can_self_test(self) -> bool:
+        """
+        Simulate a successful TWAI/CAN self-test.
+        """
+        self._require_connection()
+
+        return True
+
     def send_raw_command(self, command: str) -> str:
         self._require_connection()
 
         if command == "PING":
             return "OK"
+
+        if command == "I2C_SCAN":
+            return "I2C_DEVICES=0"
+
+        if command == "SPI_LOOPBACK":
+            return "SPI_LOOPBACK=PASS"
+
+        if command == "UART_LOOPBACK":
+            return "UART_LOOPBACK=PASS"
+
+        if command == "CAN_SELF_TEST":
+            return "CAN_SELF_TEST=PASS"
 
         return "ERROR=UNKNOWN_COMMAND"

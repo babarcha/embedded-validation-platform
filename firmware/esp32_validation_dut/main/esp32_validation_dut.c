@@ -1,39 +1,20 @@
 #include <stdio.h>
-#include <string.h>
 
 #include "driver/uart.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
+#include "i2c_test.h"
+#include "command_handler.h"
+#include "uart_test.h"
 
-#define DUT_MODEL "ESP32-DUT"
-#define FW_VERSION "1.0.0"
-#define TEMP_CDEG 2345
+#include "spi_test.h"
+#include "twai_test.h"
+
+#include "command_handler.h"
 
 #define DUT_UART UART_NUM_0
 #define UART_RX_BUFFER_SIZE 256
 #define COMMAND_BUFFER_SIZE 128
-
-static void process_command(const char *command)
-{
-    if (strcmp(command, "PING") == 0)
-    {
-        printf("OK\n");
-    }
-    else if (strcmp(command, "GET_INFO") == 0)
-    {
-        printf("MODEL=%s;FW=%s\n", DUT_MODEL, FW_VERSION);
-    }
-    else if (strcmp(command, "GET_TEMP") == 0)
-    {
-        printf("TEMP_CDEG=%d\n", TEMP_CDEG);
-    }
-    else
-    {
-        printf("ERROR=UNKNOWN_COMMAND\n");
-    }
-
-    fflush(stdout);
-}
 
 void app_main(void)
 {
@@ -41,9 +22,11 @@ void app_main(void)
     size_t command_length = 0;
 
     /*
-     * UART0 is already used by the ESP-IDF console.
-     * Install a UART driver so reads can use a finite timeout
-     * instead of blocking indefinitely in fgets().
+     * UART0 is used as the ESP-IDF console and as the DUT
+     * control interface.
+     *
+     * Install the UART driver so commands can be received
+     * with a finite timeout.
      */
     ESP_ERROR_CHECK(
         uart_driver_install(
@@ -53,6 +36,10 @@ void app_main(void)
             0,
             NULL,
             0));
+    ESP_ERROR_CHECK(i2c_test_init());
+    ESP_ERROR_CHECK(spi_test_init());
+    ESP_ERROR_CHECK(uart_test_init());
+    ESP_ERROR_CHECK(twai_test_init());
 
     printf("ESP32 Validation DUT ready\n");
     fflush(stdout);
@@ -87,8 +74,8 @@ void app_main(void)
             else
             {
                 /*
-                 * Command exceeded our buffer.
-                 * Discard it rather than overflowing the buffer.
+                 * Reject an oversized command instead of
+                 * allowing the command buffer to overflow.
                  */
                 command_length = 0;
             }
